@@ -19,16 +19,18 @@ def preprocesar(df):
     ind_cols = num_cols + imp_cols #Columnas independientes, las que uso en RF para basarme
     #Voy agregando columnas a ind_cols a medida que las proceso
 
-    df = preprocesar_categoricos(df, cat_cols_prim, 'frecuency', ind_cols)
-    ind_cols = ind_cols + cat_cols_prim - num_cols
-    df = preprocesar_numericos(df, num_cols, 'media'. ind_cols)
+    print("ind_cols inicializada:", ind_cols)
+    df = preprocesar_categoricos(df, cat_cols_prim, 'frecuency', False, ind_cols)
+    ind_cols = ind_cols + ['ITE_ADD_CITY_NAME_encoded', 'ITE_ADD_STATE_NAME_encoded', 'ITE_ADD_NEIGHBORHOOD_NAME_encoded']
+    df = preprocesar_numericos(df, num_cols, 'media', ind_cols)
+    print("bin")
     df = preprocesar_binarios(df, bin_cols_prim, 'RF', ind_cols)
     ind_cols = ind_cols + bin_cols_prim
     df = preprocesar_binarios(df, bin_cols_sec, 'moda', ind_cols) #No me importan mucho
     ind_cols = ind_cols + bin_cols_sec
     df = preprocesar_numericos(df, imp_cols, 'RF', ind_cols)
     df = procesar_antiguedad(df, ind_cols)
-    df = preprocesar_categoricos(df, cat_cols_sec, 'label', ind_cols)
+    df = preprocesar_categoricos(df, cat_cols_sec, 'label', False, ind_cols)
 
     return df
 
@@ -44,12 +46,13 @@ def preprocesar_numericos(df, columnas_numericas, imputacion='media', ind_cols=N
     return df
 
 def preprocesar_categoricos(df, columnas_categoricas, type_encoding='label', dupliqued=False, ind_cols=None):
+    print("ind_cols en preprocesar_categoricos:", ind_cols)
     for columna in columnas_categoricas:
         if type_encoding == 'frecuency':
             frec_encoding = df[columna].value_counts() / len(df)
             df[columna + '_encoded'] = df[columna].map(frec_encoding)
             if df[columna + '_encoded'].isnull().sum() > 0:
-                df = valor_faltante_random_forest(df, columna + '_encoded', 'REG')
+                df = valor_faltante_random_forest(df, columna + '_encoded', 'REG', False, ind_cols)
         elif type_encoding == 'label':
             le = LabelEncoder()
             df[columna + '_encoded'] = le.fit_transform(df[columna])
@@ -115,7 +118,7 @@ def preprocesar_binarios(df, columnas_binarias, imputacion='moda', ind_cols=None
             mediana = df[columna].median()
             df[columna] = df[columna].fillna(mediana)
         if imputacion == 'RF':
-            df = valor_faltante_random_forest(df, columna)
+            df = valor_faltante_random_forest(df, columna, 'CLAS', False, ind_cols)
         df[columna] = df[columna].astype(int)
     
     return df
@@ -124,6 +127,8 @@ def preprocesar_binarios(df, columnas_binarias, imputacion='moda', ind_cols=None
 def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False, columnas_independientes=None):
     df_faltantes = df[df[columna].isnull()]
     df_no_faltantes = df[~df[columna].isnull()]
+    # print("Columnas independientes:", columnas_independientes)
+    print("Columna a predecir:", columna)
     if columna in columnas_independientes:
         columnas_independientes.remove(columna) 
     
@@ -133,7 +138,10 @@ def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False, columnas_
     X = df_no_faltantes[columnas_independientes]
     y = df_no_faltantes[columna]
     
-
+    print("Nan en X:", X.isnull().sum())
+    print("Número de filas con valores faltantes en la columna objetivo:", len(df_faltantes))
+    print("Número de filas sin valores faltantes en la columna objetivo:", len(df_no_faltantes))
+    
     if tipo == 'CLAS':
         modelo = RandomForestClassifier(n_estimators=100, random_state=46)
     elif tipo == 'REG':
