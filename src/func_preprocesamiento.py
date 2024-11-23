@@ -15,22 +15,35 @@ def preprocesar(df):
     cat_cols_prim = ['ITE_ADD_CITY_NAME', 'ITE_ADD_STATE_NAME', 'ITE_ADD_NEIGHBORHOOD_NAME']
     cat_cols_sec = ['ITE_TIPO_PROD', 'TIPOPROPIEDAD']
     num_cols = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras']
-    imp_cols = ['Antiguedad', 'STotalM2', 'SConstrM2']
+    imp_cols = ['STotalM2', 'SConstrM2']
+    ind_cols = num_cols + imp_cols #Columnas independientes, las que uso en RF para basarme
+    #Voy agregando columnas a ind_cols a medida que las proceso
 
-    df = preprocesar_numericos(df, num_cols, 'RF')
+    df = preprocesar_categoricos(df, cat_cols_prim, 'frecuency', ind_cols)
+    ind_cols = ind_cols + cat_cols_prim - num_cols
+    df = preprocesar_numericos(df, num_cols, 'media'. ind_cols)
+    df = preprocesar_binarios(df, bin_cols_prim, 'RF', ind_cols)
+    ind_cols = ind_cols + bin_cols_prim
+    df = preprocesar_binarios(df, bin_cols_sec, 'moda', ind_cols) #No me importan mucho
+    ind_cols = ind_cols + bin_cols_sec
+    df = preprocesar_numericos(df, imp_cols, 'RF', ind_cols)
+    df = procesar_antiguedad(df, ind_cols)
+    df = preprocesar_categoricos(df, cat_cols_sec, 'label', ind_cols)
+
+    return df
 
 
-def preprocesar_numericos(df, columnas_numericas, imputacion='media'):
+def preprocesar_numericos(df, columnas_numericas, imputacion='media', ind_cols=None):
     for columna in columnas_numericas:
         if imputacion == 'media':
             media = df[columna].mean()
-            df[columna] = df[columna].fillna(media)
+            df[columna] = df[columna].fillna(media).astype(int)
         if imputacion == 'RF':
-            df = valor_faltante_random_forest(df, columna)
+            df = valor_faltante_random_forest(df, columna, ind_cols)
     
     return df
 
-def preprocesar_categoricos(df, columnas_categoricas, type_encoding='label', dupliqued=False):
+def preprocesar_categoricos(df, columnas_categoricas, type_encoding='label', dupliqued=False, ind_cols=None):
     for columna in columnas_categoricas:
         if type_encoding == 'frecuency':
             frec_encoding = df[columna].value_counts() / len(df)
@@ -62,7 +75,7 @@ def preprocesar_categoricos(df, columnas_categoricas, type_encoding='label', dup
 def delete_columns(df, columnas):
     return df.drop(columnas, axis=1)
 
-def procesar_antiguedad(df):
+def procesar_antiguedad(df, ind_cols=None):
     columna = 'Antiguedad'
     df[columna] = df[columna].str.replace(' años', '')
     df[columna] = pd.to_numeric(df[columna], errors='coerce')
@@ -79,7 +92,7 @@ def procesar_antiguedad(df):
     
     return df_rf
 
-def preprocesar_binarios(df, columnas_binarias, imputacion='moda'):
+def preprocesar_binarios(df, columnas_binarias, imputacion='moda', ind_cols=None):
     mapeo_binario = {
         '0': 0, 'no': 0, '0.0': 0,
         '1': 1, 'si': 1, '1.0': 1, 'sí': 1
@@ -108,10 +121,11 @@ def preprocesar_binarios(df, columnas_binarias, imputacion='moda'):
     return df
 
 
-def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False):
+def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False, columnas_independientes=None):
     df_faltantes = df[df[columna].isnull()]
     df_no_faltantes = df[~df[columna].isnull()]
-    columnas_independientes = ['STotalM2', 'SConstrM2', 'Dormitorios', 'Banos', 'Ambientes']  # Todas las columnas menos la columna objetivo
+    if columna in columnas_independientes:
+        columnas_independientes.remove(columna) 
     
     df_no_faltantes = df_no_faltantes.dropna(subset=columnas_independientes)
 
