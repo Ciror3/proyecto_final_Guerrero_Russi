@@ -18,7 +18,6 @@ def preprocesar(df):
     imp_cols = ['STotalM2', 'SConstrM2']
     ind_cols = num_cols + imp_cols #Columnas independientes, las que uso en RF para basarme
     #Voy agregando columnas a ind_cols a medida que las proceso
-
     df = preprocesar_categoricos(df, cat_cols_prim, 'frecuency', ind_cols)
     ind_cols = ind_cols + cat_cols_prim - num_cols
     df = preprocesar_numericos(df, num_cols, 'media'. ind_cols)
