@@ -52,7 +52,7 @@ def preprocesar_numericos(df, columnas_numericas, imputacion='media', ind_cols=N
                 df[columna] = df[columna].fillna(media).astype(int)
             if imputacion == 'RF':
                 df = valor_faltante_random_forest(df, columna, 'REG', False, ind_cols)
-        
+                df[columna] = df[columna].astype(int)
     return df
 
 def preprocesar_categoricos(df, columnas_categoricas, type_encoding='label', dupliqued=False, ind_cols=None):
@@ -136,8 +136,6 @@ def preprocesar_binarios(df, columnas_binarias, imputacion='moda', ind_cols=None
 def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False, columnas_independientes=None):
     df_faltantes = df[df[columna].isnull()]
     df_no_faltantes = df[~df[columna].isnull()]
-    if (columna == 'STotalM2'):
-        print("Columnas independientes:", columnas_independientes)
     print("Columna a predecir:", columna)
     if columna in columnas_independientes:
         columnas_independientes.remove(columna) 
