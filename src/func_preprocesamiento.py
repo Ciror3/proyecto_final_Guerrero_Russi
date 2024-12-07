@@ -12,12 +12,13 @@ from sklearn.preprocessing import LabelEncoder
 def preprocesar(df):
     imp_cols = [
     'STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE', 'Dormitorios', 'Banos', 
-    'Ambientes', 'Cocheras', 'Amoblado', 'Antiguedad', 'ITE_TIPO_PROD_encoded', 
-    'Laundry', 'Calefaccion', 'Jacuzzi', 'Gimnasio', 'Cisterna', 'AireAC', 'SalonFiestas'
+    'Ambientes', 'Cocheras', 'Amoblado', 'Antiguedad', 'ITE_TIPO_PROD', 
+    'Laundry', 'Calefaccion', 'Jacuzzi', 'Gimnasio', 'Cisterna', 'AireAC', 'SalonFiestas', 
+    'precio_pesos_constantes'
     ]
 
     df = delete_columns(df, imp_cols)
-
+    
     binarias = ['Laundry', 'Calefaccion', 'Jacuzzi', 'Gimnasio', 'Cisterna', 'AireAC', 'SalonFiestas', 'Amoblado']
     categoricas = ['ITE_TIPO_PROD']
     numericas = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras']
@@ -25,7 +26,7 @@ def preprocesar(df):
     df = acotar_caracteristicas(df)
     df = preprocesar_categoricos(df, categoricas, 'label')
     df = preprocesar_binarios(df, binarias, 'RF')
-    df = preprocesar_numericos(df, numericas, 'RF') #STotalM2 y SConstrM2
+    df = preprocesar_numericos(df, numericas, 'RF') 
     df = procesar_antiguedad(df)
 
     return df
@@ -37,8 +38,12 @@ def delete_zeros(df, columnas):
 
 def acotar_caracteristicas(df):
     #Columnas que no se aceptan valores faltantes
-    columnas_faltantes = ['LONGITUDE', 'LATITUDE', 'STotalM2', 'SConstrM2']
+    columnas_faltantes = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
     df = df.dropna(subset=columnas_faltantes)
+
+    #Poner STotalM2 y SConstrM2 enteros
+    df.loc[:, 'STotalM2'] = df['STotalM2'].astype(int)
+    df.loc[:, 'SConstrM2'] = df['SConstrM2'].astype(int)
 
     #Metros cuadrados
     df = df[(df['STotalM2'] > 10) & (df['STotalM2'] < 10**3)]
@@ -56,9 +61,6 @@ def acotar_caracteristicas(df):
     #Cocheras
     df = df[(df['Cocheras'] >= 0) & (df['Cocheras'] < 10)]
 
-    #Antiguedad
-    df = df[(df['Antiguedad'] >= 0) & (df['Antiguedad'] < 200)]
-
     return df
 
 
@@ -72,6 +74,8 @@ def preprocesar_numericos(df, columnas_numericas, imputacion='media', ind_cols=N
                 media = df[columna].mean()
                 df[columna] = df[columna].fillna(media).astype(int)
             if imputacion == 'RF':
+                ind_cols = df.drop(columns=['Antiguedad']).columns.tolist()
+                print("Las cols independientes son:", ind_cols)
                 df = valor_faltante_random_forest(df, columna, 'REG', False, ind_cols)
                 df[columna] = df[columna].astype(int)
     return df
@@ -108,9 +112,6 @@ def delete_columns(df, imp_cols):
     del_cols = [col for col in df.columns if col not in imp_cols]
     return df.drop(columns=del_cols)
 
-def delete_columns(df, columnas):
-    return df.drop(columnas, axis=1)
-
 def procesar_antiguedad(df):
     columna = 'Antiguedad'
     df[columna] = df[columna].str.replace(' años', '')
@@ -122,11 +123,10 @@ def procesar_antiguedad(df):
         df.loc[df[columna].isnull() & (df['ITE_TIPO_PROD'] == 'N'), columna] = 0
         
     df_rf = valor_faltante_random_forest(df, columna, 'REG', False)
-    # Imprimir la cantidad de valores faltantes restantes en 'Antiguedad'
-    print(f"Valores faltantes en '{columna}' después de la imputación: {df_rf[columna].isnull().sum()}")
-    
-    df_rf[columna] = df_rf[columna].fillna(0).astype(int)
-    
+    df_rf[columna] = df_rf[columna].astype(int)
+
+    df_rf = df_rf[(df_rf['Antiguedad'] >= 0) & (df_rf['Antiguedad'] < 150)]
+
     df_rf = df_rf.drop(columns=['ITE_TIPO_PROD'])
     
     return df_rf
@@ -138,7 +138,7 @@ def normalizar_valor(valor):
         valor = re.sub(r'\s+', '', valor)
         return valor
 
-def preprocesar_binarios(df, columnas_binarias, imputacion='moda', ind_cols=None):
+def preprocesar_binarios(df, columnas_binarias, imputacion='moda'):
     mapeo_binario = {
         '0': 0, 'no': 0, '0.0': 0,
         '1': 1, 'si': 1, '1.0': 1, 'sí': 1
@@ -154,23 +154,22 @@ def preprocesar_binarios(df, columnas_binarias, imputacion='moda', ind_cols=None
             mediana = df[columna].median()
             df[columna] = df[columna].fillna(mediana)
         if imputacion == 'RF':
-            df = valor_faltante_random_forest(df, columna, 'CLAS', False)
+            ind_cols = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
+            df = valor_faltante_random_forest(df, columna, 'CLAS', False, ind_cols)
         df[columna] = df[columna].astype(int)
     
     return df
 
 
-    
-    # Usar todas las columnas excepto la columna objetivo y aquellas con valores faltantes
-    columnas_independientes = df_no_faltantes.drop(columns=[columna]).dropna(axis=1).columns.tolist()
-    
-
-def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False):
+def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False, ind_cols=None):
     df_faltantes = df[df[columna].isnull()]
     df_no_faltantes = df[~df[columna].isnull()]
     print("Columna a predecir:", columna)
-    #Eliminar columna del dataframe
-    columnas_independientes = df.drop(columns=[columna, 'ITE_TIPO_PROD'])
+    if ind_cols is None:
+        #Eliminar columna del dataframe
+        columnas_independientes = df.drop(columns=[columna, 'ITE_TIPO_PROD', 'precio_pesos_constantes']).columns.tolist()
+    else:
+        columnas_independientes = ind_cols
 
     
     df_no_faltantes = df_no_faltantes.dropna(subset=columnas_independientes)
