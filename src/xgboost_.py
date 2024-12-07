@@ -35,3 +35,32 @@ def parameter_searching(X_train,y_train,X_test,y_test,model):
     r2_optimized = r2_score(y_test, y_pred_optimized)
     print(f'Optimized Mean Squared Error: {mse_optimized}')
     print(f'Optimized R2 score: {r2_optimized}')
+
+def barrido_parametrico( X_train, X_test, y_train, y_test):
+    feature_columns = X_train.columns
+    results = []
+
+    for i in range(1, len(feature_columns) + 1):
+        selected_columns = feature_columns[:i]
+        print(f"Entrenando con columnas: {list(selected_columns)}")
+        X_train_subset = X_train[selected_columns]
+        X_test_subset = X_test[selected_columns]
+        model = xgb.XGBRegressor(objective='reg:squarederror', 
+                                 n_estimators=100, 
+                                 learning_rate=0.1, 
+                                 max_depth=100,
+                                 random_state=42)
+        model.fit(X_train_subset, y_train)
+
+        y_pred = model.predict(X_test_subset)
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+
+        results.append({
+            'num_features': i,
+            'features': list(selected_columns),
+            'mse': mse,
+            'r2': r2
+        })
+        print(f"Resultados para {i} columnas: {list(selected_columns)}")
+        print(f"MSE={mse:.4f}, R2={r2:.4f}\n")
