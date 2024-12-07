@@ -40,6 +40,11 @@ def preprocesar(df):
 
     return df
 
+def delete_zeros(df, columnas):
+    if 'STotalM2' in columnas and 'SConstrM2' in columnas:
+        df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
+        df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
+
 
 def preprocesar_numericos(df, columnas_numericas, imputacion='media', ind_cols=None):
     if 'STotalM2' in columnas_numericas and 'SConstrM2' in columnas_numericas:
