@@ -9,7 +9,7 @@ from sklearn.preprocessing import LabelEncoder
 # num_cols = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras','Amoblado','Antiguedad','ITE_TIPO_PROD_encoded','Laundry','Calefaccion','Jacuzzi','Gimnasio','Cisterna','AireAC','SalonFiestas']
 # imp_cols = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
 
-def preprocesar(df):
+def preprocesar(df, tipo='train'):
     imp_cols = [
     'STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE', 'Dormitorios', 'Banos', 
     'Ambientes', 'Cocheras', 'Amoblado', 'Antiguedad', 'ITE_TIPO_PROD', 
@@ -23,7 +23,7 @@ def preprocesar(df):
     categoricas = ['ITE_TIPO_PROD']
     numericas = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras']
 
-    df = acotar_caracteristicas(df)
+    df = acotar_caracteristicas(df, tipo)
     df = preprocesar_categoricos(df, categoricas, 'label')
     df = preprocesar_binarios(df, binarias, 'RF')
     df = preprocesar_numericos(df, numericas, 'RF') 
@@ -36,38 +36,66 @@ def delete_zeros(df, columnas):
         df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
         df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
 
-def acotar_caracteristicas(df):
+def acotar_caracteristicas(df, tipo='train'):
     #Columnas que no se aceptan valores faltantes
     columnas_faltantes = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
-    df = df.dropna(subset=columnas_faltantes)
+    if tipo == 'train':
+        df = df.dropna(subset=columnas_faltantes)
+    else:
+        for columna in columnas_faltantes:
+            df = valor_faltante_random_forest(df, columna, 'REG', False)
 
     #Poner STotalM2 y SConstrM2 enteros
     df.loc[:, 'STotalM2'] = df['STotalM2'].astype(int)
     df.loc[:, 'SConstrM2'] = df['SConstrM2'].astype(int)
 
-    #Metros cuadrados
-    df = df[(df['STotalM2'] > 10) & (df['STotalM2'] < 10**3)]
-    df = df[(df['SConstrM2'] > 10) & (df['SConstrM2'] < 10**3)]
+    #Si alguno de los dos es 0, se reemplaza por el valor del otro
+    df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
+    df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
 
-    #Dormitorios
-    df = df[(df['Dormitorios'] >= 0) & (df['Dormitorios'] < 10)]
+    if tipo == 'train':
+        #Metros cuadrados
+        df = df[(df['STotalM2'] > 10) & (df['STotalM2'] < 10**3)]
+        df = df[(df['SConstrM2'] > 10) & (df['SConstrM2'] < 10**3)]
 
-    #Banos
-    df = df[(df['Banos'] > 0) & (df['Banos'] < 10)]
+        #Dormitorios
+        df = df[(df['Dormitorios'] >= 0) & (df['Dormitorios'] < 10)]
 
-    #Ambientes
-    df = df[(df['Ambientes'] > 0) & (df['Ambientes'] < 20)]
+        #Banos
+        df = df[(df['Banos'] > 0) & (df['Banos'] < 10)]
 
-    #Cocheras
-    df = df[(df['Cocheras'] >= 0) & (df['Cocheras'] < 10)]
+        #Ambientes
+        df = df[(df['Ambientes'] > 0) & (df['Ambientes'] < 20)]
+
+        #Cocheras
+        df = df[(df['Cocheras'] >= 0) & (df['Cocheras'] < 10)]
+    else:
+        #Metros cuadrados
+        df.loc[df['STotalM2'] <= 10, 'STotalM2'] = 11
+        df.loc[df['STotalM2'] >= 10**3, 'STotalM2'] = 999
+        df.loc[df['SConstrM2'] <= 10, 'SConstrM2'] = 11
+        df.loc[df['SConstrM2'] >= 10**3, 'SConstrM2'] = 999
+
+        # Dormitorios
+        df.loc[df['Dormitorios'] < 0, 'Dormitorios'] = 0
+        df.loc[df['Dormitorios'] >= 10, 'Dormitorios'] = 9
+
+        # Banos
+        df.loc[df['Banos'] <= 0, 'Banos'] = 1
+        df.loc[df['Banos'] >= 10, 'Banos'] = 9
+
+        # Ambientes
+        df.loc[df['Ambientes'] <= 0, 'Ambientes'] = 1
+        df.loc[df['Ambientes'] >= 20, 'Ambientes'] = 19
+
+        # Cocheras
+        df.loc[df['Cocheras'] < 0, 'Cocheras'] = 0
+        df.loc[df['Cocheras'] >= 10, 'Cocheras'] = 9
 
     return df
 
 
 def preprocesar_numericos(df, columnas_numericas, imputacion='media', ind_cols=None):
-    if 'STotalM2' in columnas_numericas and 'SConstrM2' in columnas_numericas:
-        df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
-        df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
     for columna in columnas_numericas:
         if df[columna].isnull().sum() > 0:
             if imputacion == 'media':
