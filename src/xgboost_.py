@@ -1,20 +1,25 @@
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error,r2_score
+import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
 
 def xg(x_train,y_train,x_test,y_test):
     model = xgb.XGBRegressor(objective='reg:squarederror', 
                          n_estimators=100, 
-                         learning_rate=0.01, 
+                         learning_rate=0.1, 
                          max_depth=200)
     
     model.fit(x_train,y_train)
-    y_pred = model.predict(x_test)
+    y_pred_log = model.predict(x_test)
+    y_pred = np.exp(y_pred_log)
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
     print(f'Mean Squared Error: {mse}')
     print(f'R2 score: {r2}')
-    return model
+    print('a\n')
+    return model, y_pred
+
 
 def parameter_searching(X_train,y_train,X_test,y_test,model):
     param_grid = {
