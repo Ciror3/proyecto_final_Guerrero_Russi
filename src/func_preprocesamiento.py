@@ -8,7 +8,6 @@ from sklearn.preprocessing import LabelEncoder
 
 # num_cols = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras','Amoblado','Antiguedad','ITE_TIPO_PROD_encoded','Laundry','Calefaccion','Jacuzzi','Gimnasio','Cisterna','AireAC','SalonFiestas']
 # imp_cols = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
-
 def preprocesar(df, tipo='train'):
     imp_cols = [
     'STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE', 'Dormitorios', 'Banos', 
@@ -23,11 +22,12 @@ def preprocesar(df, tipo='train'):
     categoricas = ['ITE_TIPO_PROD']
     numericas = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras']
 
-    df = acotar_caracteristicas(df, tipo)
     df = preprocesar_categoricos(df, categoricas, 'label')
     df = preprocesar_binarios(df, binarias, 'RF')
     df = preprocesar_numericos(df, numericas, 'RF') 
     df = procesar_antiguedad(df)
+    df = acotar_caracteristicas(df, tipo)
+    df = df.drop(columns=['ITE_TIPO_PROD'])
 
     return df
 
@@ -44,7 +44,7 @@ def acotar_caracteristicas(df, tipo='train'):
     else:
         for columna in columnas_faltantes:
             df = valor_faltante_random_forest(df, columna, 'REG', False)
-
+    
     #Poner STotalM2 y SConstrM2 enteros
     df.loc[:, 'STotalM2'] = df['STotalM2'].astype(int)
     df.loc[:, 'SConstrM2'] = df['SConstrM2'].astype(int)
@@ -154,8 +154,6 @@ def procesar_antiguedad(df):
     df_rf[columna] = df_rf[columna].astype(int)
 
     df_rf = df_rf[(df_rf['Antiguedad'] >= 0) & (df_rf['Antiguedad'] < 150)]
-
-    df_rf = df_rf.drop(columns=['ITE_TIPO_PROD'])
     
     return df_rf
 
@@ -190,6 +188,8 @@ def preprocesar_binarios(df, columnas_binarias, imputacion='moda'):
 
 
 def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False, ind_cols=None):
+    if df[columna].isnull().sum() == 0:
+        return df
     df_faltantes = df[df[columna].isnull()]
     df_no_faltantes = df[~df[columna].isnull()]
     print("Columna a predecir:", columna)
