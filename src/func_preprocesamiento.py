@@ -244,7 +244,6 @@ def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False, ind_cols=
         return df
     df_faltantes = df[df[columna].isnull()]
     df_no_faltantes = df[~df[columna].isnull()]
-    print("Columna a predecir:", columna)
     if ind_cols is None:
         #Eliminar columna del dataframe
         columnas_independientes = df.drop(columns=[columna, 'ITE_TIPO_PROD', 'precio_pesos_constantes']).columns.tolist()

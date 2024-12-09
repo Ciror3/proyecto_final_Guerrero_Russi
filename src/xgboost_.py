@@ -1,23 +1,44 @@
 import xgboost as xgb
-from sklearn.metrics import mean_squared_error,r2_score
+from sklearn.metrics import r2_score, root_mean_squared_error
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
 
-def xg(x_train,y_train,x_test,y_test):
-    model = xgb.XGBRegressor(objective='reg:squarederror', 
-                         n_estimators=100, 
-                         learning_rate=0.01, 
-                         max_depth=1000)
+# def xg(x_train,y_train,x_test,y_test):
+#     model = xgb.XGBRegressor(objective='reg:squarederror', 
+#                          n_estimators=100, 
+#                          learning_rate=0.01, 
+#                          max_depth=1000)
     
-    model.fit(x_train,y_train)
-    y_pred = model.predict(x_test)
-    # y_pred = np.exp(y_pred_log)
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    print(f'Mean Squared Error: {mse}')
-    print(f'R2 score: {r2}')
-    return model, y_pred
+#     model.fit(x_train,y_train)
+#     y_pred = model.predict(x_test)
+#     rmse = root_mean_squared_error(y_test, y_pred)
+#     r2 = r2_score(y_test, y_pred)
+#     print(f'RMSE: {rmse}')
+#     print(f'R2 score: {r2}')
+#     return model, y_pred
+
+class XGBoostModel:
+    def __init__(self, n_estimators=100, learning_rate=0.01, max_depth=1000):
+        self.model = xgb.XGBRegressor(objective='reg:squarederror', 
+                                      n_estimators=n_estimators, 
+                                      learning_rate=learning_rate, 
+                                      max_depth=max_depth)
+
+    def fit(self, x_train, y_train):
+        self.model.fit(x_train, y_train)
+        print("Model training completed.")
+
+    def predict(self, x_test):
+        y_pred = self.model.predict(x_test)
+        return y_pred
+
+    def evaluate(self, y_test, y_pred):
+        rmse = root_mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        print(f'RMSE: {rmse}')
+        print(f'R2 score: {r2}')
+        return rmse, r2
 
 
 def parameter_searching(X_train,y_train,X_test,y_test,model):
