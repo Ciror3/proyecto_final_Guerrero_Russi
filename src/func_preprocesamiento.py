@@ -8,13 +8,27 @@ from sklearn.preprocessing import LabelEncoder
 
 # num_cols = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras','Amoblado','Antiguedad','ITE_TIPO_PROD_encoded','Laundry','Calefaccion','Jacuzzi','Gimnasio','Cisterna','AireAC','SalonFiestas']
 # imp_cols = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
-def preprocesar(df, tipo='train'):
+def preprocesar(df, tipo='train', extra_cols=None):
+    """
+    Preprocesa el dataframe de acuerdo a las columnas que se consideran importantes.
+    
+    Parameters
+    ----------
+    df : DataFrame
+        DataFrame con los datos a preprocesar.
+    tipo : str, optional
+        Tipo de preprocesamiento a realizar. Por defecto es 'train', en este caso se eliminan muestras, sino no.
+    extra_cols : list, optional
+        Lista con columnas adicionales a considerar en el preprocesamiento, pero estas no se procesan. Por defecto es None.
+    """
     imp_cols = [
     'STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE', 'Dormitorios', 'Banos', 
     'Ambientes', 'Cocheras', 'Amoblado', 'Antiguedad', 'ITE_TIPO_PROD', 
     'Laundry', 'Calefaccion', 'Jacuzzi', 'Gimnasio', 'Cisterna', 'AireAC', 'SalonFiestas', 
     'precio_pesos_constantes'
     ]
+    if extra_cols is not None:
+        imp_cols = imp_cols + extra_cols
 
     df = delete_columns(df, imp_cols)
     
