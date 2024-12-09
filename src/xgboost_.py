@@ -11,13 +11,12 @@ def xg(x_train,y_train,x_test,y_test):
                          max_depth=200)
     
     model.fit(x_train,y_train)
-    y_pred_log = model.predict(x_test)
-    y_pred = np.exp(y_pred_log)
+    y_pred = model.predict(x_test)
+    # y_pred = np.exp(y_pred_log)
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
     print(f'Mean Squared Error: {mse}')
     print(f'R2 score: {r2}')
-    print('a\n')
     return model, y_pred
 
 
