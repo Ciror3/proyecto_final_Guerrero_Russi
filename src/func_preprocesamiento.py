@@ -8,7 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 
 # num_cols = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras','Amoblado','Antiguedad','ITE_TIPO_PROD_encoded','Laundry','Calefaccion','Jacuzzi','Gimnasio','Cisterna','AireAC','SalonFiestas']
 # imp_cols = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
-def preprocesar(df, tipo='train', extra_cols=None):
+def preprocesar(df, extra_cols=None):
     """
     Preprocesa el dataframe de acuerdo a las columnas que se consideran importantes.
     
@@ -16,8 +16,6 @@ def preprocesar(df, tipo='train', extra_cols=None):
     ----------
     df : DataFrame
         DataFrame con los datos a preprocesar.
-    tipo : str, optional
-        Tipo de preprocesamiento a realizar. Por defecto es 'train', en este caso se eliminan muestras, sino no.
     extra_cols : list, optional
         Lista con columnas adicionales a considerar en el preprocesamiento, pero estas no se procesan. Por defecto es None.
     """
@@ -40,8 +38,7 @@ def preprocesar(df, tipo='train', extra_cols=None):
     df = preprocesar_binarios(df, binarias, 'RF')
     df = preprocesar_numericos(df, numericas, 'RF') 
     df = procesar_antiguedad(df)
-    df = acotar_caracteristicas(df, tipo)
-    df = df.drop(columns=['ITE_TIPO_PROD'])
+    #df = acotar_caracteristicas(df, tipo)
 
     return df
 
@@ -50,14 +47,10 @@ def delete_zeros(df, columnas):
         df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
         df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
 
-def acotar_caracteristicas(df, tipo='train'):
+def acotar_caracteristicas(df):
     #Columnas que no se aceptan valores faltantes
     columnas_faltantes = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
-    if tipo == 'train':
-        df = df.dropna(subset=columnas_faltantes)
-    else:
-        for columna in columnas_faltantes:
-            df = valor_faltante_random_forest(df, columna, 'REG', False)
+    df = df.dropna(subset=columnas_faltantes)
     
     #Poner STotalM2 y SConstrM2 enteros
     df.loc[:, 'STotalM2'] = df['STotalM2'].astype(int)
@@ -67,44 +60,26 @@ def acotar_caracteristicas(df, tipo='train'):
     df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
     df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
 
-    if tipo == 'train':
-        #Metros cuadrados
-        df = df[(df['STotalM2'] > 10) & (df['STotalM2'] < 10**3)]
-        df = df[(df['SConstrM2'] > 10) & (df['SConstrM2'] < 10**3)]
+    #Metros cuadrados
+    df = df[(df['STotalM2'] > 10) & (df['STotalM2'] < 10**3)]
+    df = df[(df['SConstrM2'] > 10) & (df['SConstrM2'] < 10**3)]
 
-        #Dormitorios
-        df = df[(df['Dormitorios'] >= 0) & (df['Dormitorios'] < 10)]
+    #Dormitorios
+    df = df[(df['Dormitorios'] >= 0) & (df['Dormitorios'] < 10)]
 
-        #Banos
-        df = df[(df['Banos'] > 0) & (df['Banos'] < 10)]
+    #Banos
+    df = df[(df['Banos'] > 0) & (df['Banos'] < 10)]
 
-        #Ambientes
-        df = df[(df['Ambientes'] > 0) & (df['Ambientes'] < 20)]
+    #Ambientes
+    df = df[(df['Ambientes'] > 0) & (df['Ambientes'] < 20)]
 
-        #Cocheras
-        df = df[(df['Cocheras'] >= 0) & (df['Cocheras'] < 10)]
-    else:
-        #Metros cuadrados
-        df.loc[df['STotalM2'] <= 10, 'STotalM2'] = 11
-        df.loc[df['STotalM2'] >= 10**3, 'STotalM2'] = 999
-        df.loc[df['SConstrM2'] <= 10, 'SConstrM2'] = 11
-        df.loc[df['SConstrM2'] >= 10**3, 'SConstrM2'] = 999
+    #Cocheras
+    df = df[(df['Cocheras'] >= 0) & (df['Cocheras'] < 10)]
 
-        # Dormitorios
-        df.loc[df['Dormitorios'] < 0, 'Dormitorios'] = 0
-        df.loc[df['Dormitorios'] >= 10, 'Dormitorios'] = 9
-
-        # Banos
-        df.loc[df['Banos'] <= 0, 'Banos'] = 1
-        df.loc[df['Banos'] >= 10, 'Banos'] = 9
-
-        # Ambientes
-        df.loc[df['Ambientes'] <= 0, 'Ambientes'] = 1
-        df.loc[df['Ambientes'] >= 20, 'Ambientes'] = 19
-
-        # Cocheras
-        df.loc[df['Cocheras'] < 0, 'Cocheras'] = 0
-        df.loc[df['Cocheras'] >= 10, 'Cocheras'] = 9
+    #Antiguedad
+    df['Antiguedad'] = df['Antiguedad'].str.replace(' años', '')
+    df['Antiguedad'] = pd.to_numeric(df['Antiguedad'], errors='coerce')
+    df = df[(df['Antiguedad'] >= 0) & (df['Antiguedad'] < 150)]
 
     return df
 
@@ -156,8 +131,8 @@ def delete_columns(df, imp_cols):
 
 def procesar_antiguedad(df):
     columna = 'Antiguedad'
-    df[columna] = df[columna].str.replace(' años', '')
-    df[columna] = pd.to_numeric(df[columna], errors='coerce')
+    # df[columna] = df[columna].str.replace(' años', '')
+    # df[columna] = pd.to_numeric(df[columna], errors='coerce')
 
     df_faltantes = df[df[columna].isnull()]
 
@@ -167,7 +142,8 @@ def procesar_antiguedad(df):
     df_rf = valor_faltante_random_forest(df, columna, 'REG', False)
     df_rf[columna] = df_rf[columna].astype(int)
 
-    df_rf = df_rf[(df_rf['Antiguedad'] >= 0) & (df_rf['Antiguedad'] < 150)]
+    df_rf = df_rf.drop(columns=['ITE_TIPO_PROD'])
+    #df_rf = df_rf[(df_rf['Antiguedad'] >= 0) & (df_rf['Antiguedad'] < 150)]
     
     return df_rf
 

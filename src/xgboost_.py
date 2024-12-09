@@ -7,8 +7,8 @@ from sklearn.model_selection import GridSearchCV
 def xg(x_train,y_train,x_test,y_test):
     model = xgb.XGBRegressor(objective='reg:squarederror', 
                          n_estimators=100, 
-                         learning_rate=0.1, 
-                         max_depth=200)
+                         learning_rate=0.01, 
+                         max_depth=1000)
     
     model.fit(x_train,y_train)
     y_pred = model.predict(x_test)
