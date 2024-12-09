@@ -1,5 +1,6 @@
 import xgboost as xgb
 from sklearn.metrics import r2_score, root_mean_squared_error
+import shap
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
@@ -41,6 +42,22 @@ class XGBoostModel:
         return rmse, r2
 
 
+def visualize_splits_lat_lon(model, x_test, y_pred):
+    
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(x_test)
+    
+    shap.summary_plot(shap_values, x_test, feature_names=x_test.columns)
+    
+    plt.figure(figsize=(10, 8))  # Ajustar el tamaño de la figura para que no sea tan grande
+    plt.scatter(x_test['LATITUDE'], x_test['LONGITUDE'], c=y_pred, cmap='viridis')
+    plt.colorbar(label="Predicted Price")
+    plt.xlabel("LATITUDE")
+    plt.ylabel("LONGITUDE")
+    plt.title("Split visualization for LATITUDE and LONGITUDE")
+    plt.show()
+
+
 def parameter_searching(X_train,y_train,X_test,y_test,model):
     param_grid = {
         'n_estimators': [50, 100, 200],
@@ -56,9 +73,9 @@ def parameter_searching(X_train,y_train,X_test,y_test,model):
 
     best_model = grid_search.best_estimator_
     y_pred_optimized = best_model.predict(X_test)
-    mse_optimized = mean_squared_error(y_test, y_pred_optimized)
+    rmse_optimized = root_mean_squared_error(y_test, y_pred_optimized)
     r2_optimized = r2_score(y_test, y_pred_optimized)
-    print(f'Optimized Mean Squared Error: {mse_optimized}')
+    print(f'Optimized RMSE: {rmse_optimized}')
     print(f'Optimized R2 score: {r2_optimized}')
 
 def barrido_parametrico( X_train, X_test, y_train, y_test):
@@ -78,14 +95,14 @@ def barrido_parametrico( X_train, X_test, y_train, y_test):
         model.fit(X_train_subset, y_train)
 
         y_pred = model.predict(X_test_subset)
-        mse = mean_squared_error(y_test, y_pred)
+        rmse = root_mean_squared_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
 
         results.append({
             'num_features': i,
             'features': list(selected_columns),
-            'mse': mse,
+            'rmse': rmse,
             'r2': r2
         })
         print(f"Resultados para {i} columnas: {list(selected_columns)}")
-        print(f"MSE={mse:.4f}, R2={r2:.4f}\n")
+        print(f"RMSE={rmse:.4f}, R2={r2:.4f}\n")
