@@ -1,6 +1,6 @@
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error,r2_score
-import numpy as np
+import shap
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
 
@@ -12,12 +12,27 @@ def xg(x_train,y_train,x_test,y_test):
     
     model.fit(x_train,y_train)
     y_pred = model.predict(x_test)
-    # y_pred = np.exp(y_pred_log)
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
     print(f'Mean Squared Error: {mse}')
     print(f'R2 score: {r2}')
     return model, y_pred
+
+
+def visualize_splits_lat_lon(model, x_test, y_pred):
+    
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(x_test)
+    
+    shap.summary_plot(shap_values, x_test, feature_names=x_test.columns)
+    
+    plt.figure(figsize=(10, 8))  # Ajustar el tamaño de la figura para que no sea tan grande
+    plt.scatter(x_test['LATITUDE'], x_test['LONGITUDE'], c=y_pred, cmap='viridis')
+    plt.colorbar(label="Predicted Price")
+    plt.xlabel("LATITUDE")
+    plt.ylabel("LONGITUDE")
+    plt.title("Split visualization for LATITUDE and LONGITUDE")
+    plt.show()
 
 
 def parameter_searching(X_train,y_train,X_test,y_test,model):
