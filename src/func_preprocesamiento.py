@@ -52,8 +52,8 @@ def delete_zeros(df, columnas):
         df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
 
 def acotar_precio_cuartiles(df):
-    Q1 = df['precio_por_m2'].quantile(0.30)
-    Q3 = df['precio_por_m2'].quantile(0.70)
+    Q1 = df['precio_por_m2'].quantile(0.25)
+    Q3 = df['precio_por_m2'].quantile(0.75)
     IQR = Q3 - Q1
 
     lower_bound = Q1 - 1.5 * IQR
