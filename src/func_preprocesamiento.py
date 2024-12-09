@@ -8,7 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 
 # num_cols = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras','Amoblado','Antiguedad','ITE_TIPO_PROD_encoded','Laundry','Calefaccion','Jacuzzi','Gimnasio','Cisterna','AireAC','SalonFiestas']
 # imp_cols = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
-def preprocesar(df, extra_cols=None):
+def preprocesar(df, tipo= 'train', extra_cols=None):
     """
     Preprocesa el dataframe de acuerdo a las columnas que se consideran importantes.
     
@@ -16,6 +16,8 @@ def preprocesar(df, extra_cols=None):
     ----------
     df : DataFrame
         DataFrame con los datos a preprocesar.
+    tipo : str, optional
+        Tipo de preprocesamiento a realizar. Por defecto es 'train'.
     extra_cols : list, optional
         Lista con columnas adicionales a considerar en el preprocesamiento, pero estas no se procesan. Por defecto es None.
     """
@@ -25,6 +27,7 @@ def preprocesar(df, extra_cols=None):
     'Laundry', 'Calefaccion', 'Jacuzzi', 'Gimnasio', 'Cisterna', 'AireAC', 'SalonFiestas', 
     'precio_pesos_constantes'
     ]
+
     if extra_cols is not None:
         imp_cols = imp_cols + extra_cols
 
@@ -38,7 +41,8 @@ def preprocesar(df, extra_cols=None):
     df = preprocesar_binarios(df, binarias, 'RF')
     df = preprocesar_numericos(df, numericas, 'RF') 
     df = procesar_antiguedad(df)
-    #df = acotar_caracteristicas(df, tipo)
+    if tipo != 'train':
+        df = acotar_caracteristicas(df, tipo)
 
     return df
 
@@ -47,39 +51,97 @@ def delete_zeros(df, columnas):
         df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
         df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
 
-def acotar_caracteristicas(df):
-    #Columnas que no se aceptan valores faltantes
-    columnas_faltantes = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
-    df = df.dropna(subset=columnas_faltantes)
-    
-    #Poner STotalM2 y SConstrM2 enteros
-    df.loc[:, 'STotalM2'] = df['STotalM2'].astype(int)
-    df.loc[:, 'SConstrM2'] = df['SConstrM2'].astype(int)
+def acotar_precio_cuartiles(df):
+    Q1 = df['precio_por_m2'].quantile(0.25)
+    Q3 = df['precio_por_m2'].quantile(0.75)
+    IQR = Q3 - Q1
 
-    #Si alguno de los dos es 0, se reemplaza por el valor del otro
-    df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
-    df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
 
-    #Metros cuadrados
-    df = df[(df['STotalM2'] > 10) & (df['STotalM2'] < 10**3)]
-    df = df[(df['SConstrM2'] > 10) & (df['SConstrM2'] < 10**3)]
+    df_filt = df[(df['precio_por_m2'] >= lower_bound) & (df['precio_por_m2'] <= upper_bound)]
+    return df_filt
 
-    #Dormitorios
-    df = df[(df['Dormitorios'] >= 0) & (df['Dormitorios'] < 10)]
+def precio_por_m2(df):
+    """
+    Agrega una columna de precios por m2 al dataset
+    """
 
-    #Banos
-    df = df[(df['Banos'] > 0) & (df['Banos'] < 10)]
+    df['precio_por_m2'] = df['precio_pesos_constantes'] / df['SConstrM2']
+    return df
 
-    #Ambientes
-    df = df[(df['Ambientes'] > 0) & (df['Ambientes'] < 20)]
+def acotar_caracteristicas(df, tipo = 'completo'):
+    """
+    Acota las características del dataset.
+    Si es completo, elimina las filas con valores faltantes en columnas importantes.
+    Si es test, reemplaza los valores faltantes por la predicción de un modelo Random Forest.
+    """
 
-    #Cocheras
-    df = df[(df['Cocheras'] >= 0) & (df['Cocheras'] < 10)]
+    if df['Antiguedad'].dtype == 'object' or df['Antiguedad'].dtype == 'string':
+        df['Antiguedad'] = df['Antiguedad'].str.replace(' años', '')
+        df['Antiguedad'] = pd.to_numeric(df['Antiguedad'], errors='coerce')
 
-    #Antiguedad
-    df['Antiguedad'] = df['Antiguedad'].str.replace(' años', '')
-    df['Antiguedad'] = pd.to_numeric(df['Antiguedad'], errors='coerce')
-    df = df[(df['Antiguedad'] >= 0) & (df['Antiguedad'] < 150)]
+    if tipo == 'completo':
+        #Columnas que no se aceptan valores faltantes
+        columnas_faltantes = ['STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE']
+        df = df.dropna(subset=columnas_faltantes)
+
+        df = precio_por_m2(df)
+        df = acotar_precio_cuartiles(df)
+        
+        #Poner STotalM2 y SConstrM2 enteros
+        df.loc[:, 'STotalM2'] = df['STotalM2'].astype(int)
+        df.loc[:, 'SConstrM2'] = df['SConstrM2'].astype(int)
+
+        #Si alguno de los dos es 0, se reemplaza por el valor del otro
+        df.loc[(df['STotalM2'] == 0) & (df['SConstrM2'] != 0), 'STotalM2'] = df['SConstrM2']
+        df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
+
+        #Metros cuadrados
+        df = df[(df['STotalM2'] > 10) & (df['STotalM2'] < 10**3)]
+        df = df[(df['SConstrM2'] > 10) & (df['SConstrM2'] < 10**3)]
+
+        #Dormitorios
+        df = df[(df['Dormitorios'] >= 0) & (df['Dormitorios'] < 10)]
+
+        #Banos
+        df = df[(df['Banos'] > 0) & (df['Banos'] < 10)]
+
+        #Ambientes
+        df = df[(df['Ambientes'] > 0) & (df['Ambientes'] < 20)]
+
+        #Cocheras
+        df = df[(df['Cocheras'] >= 0) & (df['Cocheras'] < 10)]
+
+        #Antiguedad
+        df = df[(df['Antiguedad'] >= 0) & (df['Antiguedad'] < 150)]
+        
+    else:
+        #Metros cuadrados
+        df.loc[df['STotalM2'] <= 10, 'STotalM2'] = 11
+        df.loc[df['STotalM2'] >= 10**3, 'STotalM2'] = 999
+        df.loc[df['SConstrM2'] <= 10, 'SConstrM2'] = 11
+        df.loc[df['SConstrM2'] >= 10**3, 'SConstrM2'] = 999
+        
+        # Dormitorios
+        df.loc[df['Dormitorios'] < 0, 'Dormitorios'] = 0
+        df.loc[df['Dormitorios'] >= 10, 'Dormitorios'] = 9
+
+        # Banos
+        df.loc[df['Banos'] <= 0, 'Banos'] = 1
+        df.loc[df['Banos'] >= 10, 'Banos'] = 9
+
+        # Ambientes
+        df.loc[df['Ambientes'] <= 0, 'Ambientes'] = 1
+        df.loc[df['Ambientes'] >= 20, 'Ambientes'] = 19
+
+        # Cocheras
+        df.loc[df['Cocheras'] < 0, 'Cocheras'] = 0
+        df.loc[df['Cocheras'] >= 10, 'Cocheras'] = 9
+
+        
+        df.loc[df['Antiguedad'] < 0, 'Antiguedad'] = 0
+        df.loc[df['Antiguedad'] > 150, 'Antiguedad'] = 160
 
     return df
 
