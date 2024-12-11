@@ -21,6 +21,7 @@ def preprocesar(df, tipo= 'train', extra_cols=None):
     extra_cols : list, optional
         Lista con columnas adicionales a considerar en el preprocesamiento, pero estas no se procesan. Por defecto es None.
     """
+
     imp_cols = [
     'STotalM2', 'SConstrM2', 'LONGITUDE', 'LATITUDE', 'Dormitorios', 'Banos', 
     'Ambientes', 'Cocheras', 'Amoblado', 'Antiguedad', 'ITE_TIPO_PROD', 
@@ -37,12 +38,17 @@ def preprocesar(df, tipo= 'train', extra_cols=None):
     categoricas = ['ITE_TIPO_PROD']
     numericas = ['Dormitorios', 'Banos', 'Ambientes', 'Cocheras']
 
+    # columns_extra_cols = df[extra_cols]
+    # df = df.drop(columns=[extra_cols])
+
     df = preprocesar_categoricos(df, categoricas, 'label')
     df = preprocesar_binarios(df, binarias, 'RF')
-    df = preprocesar_numericos(df, numericas, 'RF') 
-    df = procesar_antiguedad(df)
+    df = preprocesar_numericos(df, numericas, 'RF')
     if tipo != 'train':
         df = acotar_caracteristicas(df, tipo)
+    df = procesar_antiguedad(df)
+
+    # df = pd.concat([df, columns_extra_cols], axis=1)
 
     return df
 
@@ -52,7 +58,7 @@ def delete_zeros(df, columnas):
         df.loc[(df['SConstrM2'] == 0) & (df['STotalM2'] != 0), 'SConstrM2'] = df['STotalM2']
 
 def acotar_precio_cuartiles(df):
-    Q1 = df['precio_por_m2'].quantile(0.36)
+    Q1 = df['precio_por_m2'].quantile(0.35)
     Q3 = df['precio_por_m2'].quantile(0.65)
     IQR = Q3 - Q1
 
@@ -148,6 +154,8 @@ def acotar_caracteristicas(df, tipo = 'completo'):
 
 def preprocesar_numericos(df, columnas_numericas, imputacion='media', ind_cols=None):
     for columna in columnas_numericas:
+        df[columna] = pd.to_numeric(df[columna], errors='coerce')
+
         if df[columna].isnull().sum() > 0:
             if imputacion == 'media':
                 media = df[columna].mean()
@@ -218,12 +226,15 @@ def normalizar_valor(valor):
 
 def preprocesar_binarios(df, columnas_binarias, imputacion='moda'):
     mapeo_binario = {
-        '0': 0, 'no': 0, '0.0': 0,
-        '1': 1, 'si': 1, '1.0': 1, 'sí': 1
+        '0': 0, 'no': 0, '0.0': 0, 'n': 0, 'f': 0, 'false': 0, 'falso': 0,
+        '1': 1, 'si': 1, '1.0': 1, 'sí': 1, 's': 1, 't': 1, 'true': 1, 'verdadero': 1
     }
     
     for columna in columnas_binarias:
         df[columna] = df[columna].map(lambda x: mapeo_binario.get(normalizar_valor(x), x))
+        df[columna] = pd.to_numeric(df[columna], errors='coerce')
+        if df[columna].dtype == 'object':
+            print(f'La columna {columna} no se pudo convertir a binario')
 
         if imputacion == 'moda':
             moda = df[columna].mode()[0]
@@ -246,7 +257,10 @@ def valor_faltante_random_forest(df, columna, tipo='CLAS', test=False, ind_cols=
     df_no_faltantes = df[~df[columna].isnull()]
     if ind_cols is None:
         #Eliminar columna del dataframe
-        columnas_independientes = df.drop(columns=[columna, 'ITE_TIPO_PROD', 'precio_pesos_constantes']).columns.tolist()
+        if 'precio_pesos_constantes' in df.columns:
+            columnas_independientes = df.drop(columns=[columna, 'ITE_TIPO_PROD', 'precio_pesos_constantes']).columns.tolist()
+        else:
+            columnas_independientes = df.drop(columns=[columna, 'ITE_TIPO_PROD']).columns.tolist()
     else:
         columnas_independientes = ind_cols
 
