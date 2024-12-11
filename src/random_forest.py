@@ -1,12 +1,12 @@
-import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 def rf(X_train, X_test, y_train, y_test):
     rf_model = RandomForestRegressor(
-        n_estimators=100,      
-        max_depth=50,        
+        n_estimators=3,      
+        max_depth=3,        
         random_state=42
     )
 
@@ -20,12 +20,10 @@ def rf(X_train, X_test, y_train, y_test):
 
 
 def evaluate_model(y_true, y_pred):
-    rmse = mean_squared_error(y_true, y_pred, squared=False)
-    mae = mean_absolute_error(y_true, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     r2 = r2_score(y_true, y_pred)
     print(f"  RMSE: {rmse:.2f}")
-    print(f"  MAE: {mae:.2f}")
     print(f"  R2: {r2:.2f}")
-    return rmse, mae, r2
+    return rmse, r2
 
     
