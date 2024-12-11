@@ -1,7 +1,7 @@
 import xgboost as xgb
-from sklearn.metrics import r2_score, root_mean_squared_error
-import shap
 import numpy as np
+from sklearn.metrics import r2_score, mean_squared_error
+import pickle
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
 
@@ -35,27 +35,11 @@ class XGBoostModel:
         return y_pred
 
     def evaluate(self, y_test, y_pred):
-        rmse = root_mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
         r2 = r2_score(y_test, y_pred)
         print(f'RMSE: {rmse}')
         print(f'R2 score: {r2}')
         return rmse, r2
-
-
-def visualize_splits_lat_lon(model, x_test, y_pred):
-    
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(x_test)
-    
-    shap.summary_plot(shap_values, x_test, feature_names=x_test.columns)
-    
-    plt.figure(figsize=(10, 8))  # Ajustar el tamaño de la figura para que no sea tan grande
-    plt.scatter(x_test['LATITUDE'], x_test['LONGITUDE'], c=y_pred, cmap='viridis')
-    plt.colorbar(label="Predicted Price")
-    plt.xlabel("LATITUDE")
-    plt.ylabel("LONGITUDE")
-    plt.title("Split visualization for LATITUDE and LONGITUDE")
-    plt.show()
 
 
 def parameter_searching(X_train,y_train,X_test,y_test,model):
@@ -73,7 +57,7 @@ def parameter_searching(X_train,y_train,X_test,y_test,model):
 
     best_model = grid_search.best_estimator_
     y_pred_optimized = best_model.predict(X_test)
-    rmse_optimized = root_mean_squared_error(y_test, y_pred_optimized)
+    rmse_optimized = np.sqrt(mean_squared_error(y_test, y_pred_optimized))
     r2_optimized = r2_score(y_test, y_pred_optimized)
     print(f'Optimized RMSE: {rmse_optimized}')
     print(f'Optimized R2 score: {r2_optimized}')
@@ -95,7 +79,7 @@ def barrido_parametrico( X_train, X_test, y_train, y_test):
         model.fit(X_train_subset, y_train)
 
         y_pred = model.predict(X_test_subset)
-        rmse = root_mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
         r2 = r2_score(y_test, y_pred)
 
         results.append({
@@ -106,3 +90,19 @@ def barrido_parametrico( X_train, X_test, y_train, y_test):
         })
         print(f"Resultados para {i} columnas: {list(selected_columns)}")
         print(f"RMSE={rmse:.4f}, R2={r2:.4f}\n")
+
+def save_model(model, filename='xgboost_model.pkl'):
+    """
+    Guarda un modelo entrenado en un archivo utilizando pickle.
+
+    :param model: El modelo que se desea guardar.
+    :param filename: Nombre del archivo donde se guardará el modelo. 
+                     Por defecto es 'xgboost_model.pkl'.
+    """
+    with open(filename, 'wb') as file:
+        pickle.dump(model, file)
+
+def load_model(model_path):
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
+    return model
