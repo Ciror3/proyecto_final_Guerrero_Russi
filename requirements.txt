@@ -8,3 +8,4 @@ sklearn
 pickle
 xgboost
 re
+seaborn
