@@ -5,8 +5,8 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 def rf(X_train, X_test, y_train, y_test):
     rf_model = RandomForestRegressor(
-        n_estimators=3,      
-        max_depth=3,        
+        n_estimators=2,      
+        max_depth=2,        
         random_state=42
     )
 
@@ -23,7 +23,7 @@ def evaluate_model(y_true, y_pred):
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     r2 = r2_score(y_true, y_pred)
     print(f"  RMSE: {rmse:.2f}")
-    print(f"  R2: {r2:.2f}")
+    print(f"  R2: {r2:.4f}")
     return rmse, r2
 
     

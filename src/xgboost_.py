@@ -2,7 +2,6 @@ import xgboost as xgb
 import numpy as np
 from sklearn.metrics import r2_score, mean_squared_error
 import pickle
-import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
 
 # def xg(x_train,y_train,x_test,y_test):
